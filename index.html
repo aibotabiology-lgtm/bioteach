@@ -82,6 +82,8 @@ footer{border-top:1px solid var(--line);padding:22px 24px;text-align:center;colo
 .pb{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 13px;font-size:14px;font-weight:700;color:var(--deep);cursor:pointer;white-space:nowrap}
 .pb.main{background:var(--g);border-color:var(--g);color:#fff}
 .pb[aria-pressed=false]{color:var(--mut);font-weight:500}
+.pb.pen{background:#FFF4E0;border-color:#F2B33D;color:#8A5A00}
+.pb.pen[aria-pressed=true]{background:#D93838;border-color:#D93838;color:#fff}
 .pb.live[aria-pressed=true]{background:#D93838;border-color:#D93838;color:#fff}
 .stage{flex:1;min-height:0;position:relative;overflow:hidden}
 .stage iframe{position:absolute;left:0;top:0;border:0;background:var(--bg);transform-origin:0 0}
@@ -216,12 +218,14 @@ body.noscroll{overflow:hidden}
  <div class="pbar"><button class="pb main" id="pback">← Артқа</button><span class="t" id="ptitle"></span>
   <button class="pb opt" id="pzm" title="Масштаб">A+ 100%</button>
   <button class="pb opt" id="pexp" aria-pressed="true">Түсіндірме</button><button class="pb opt" id="plbl" aria-pressed="true">Атаулары</button>
+  <button class="pb pen" id="ppen" aria-pressed="false" title="Суреттің үстіне сызу (D)">✎ Сызу</button>
   <button class="pb live" id="plive" aria-pressed="false" title="Эфир режимі: толық экран, үлкен масштаб">● Эфир</button></div>
  <div class="stage" id="pstage"><iframe id="pfr" title="" allow="fullscreen"></iframe></div>
 </section>
 
 <section class="full" id="slides" hidden>
  <div class="pbar"><button class="pb main" id="sback">← Тақырыптар</button><span class="t" id="stitle"></span>
+  <button class="pb pen" id="spen" aria-pressed="false" title="Слайдтың үстіне сызу (D)">✎ Сызу</button>
   <button class="pb live" id="slive" aria-pressed="false" title="Эфир режимі: толық экран">● Эфир</button></div>
  <div class="stage sstage" id="sstage"><div class="sview" id="sview"><div class="sdeck" id="sdeck"></div></div></div>
  <div class="sfoot"><button class="pb" id="sprev" aria-label="Алдыңғы">←</button><div class="pills" id="spills"></div><span class="cnt" id="scnt"></span><button class="pb main" id="snext" aria-label="Келесі">→</button></div>
@@ -260,7 +264,7 @@ html,body{height:100%!important;max-height:100%!important;overflow:hidden!import
 .hd img{width:30px!important;height:30px!important}
 @media (max-width:760px){.hd .bpx{padding:7px 12px;font-size:13px}.hd .bpx.fs{display:none}}
 </style>`;
-const BPX_JS=`<script>(function(){var h=document.querySelector('.hd');if(!h)return;var b=document.createElement('button');b.className='bpx';b.type='button';b.textContent='← Шығу';b.onclick=function(){parent.postMessage('bp-exit','*')};h.insertBefore(b,h.firstChild);
+const BPX_JS=`<script>(function(){document.addEventListener('keydown',function(e){var k=e.key;if(e.target&&e.target.matches&&e.target.matches('input,textarea'))return;if(k==='d'||k==='D'||k==='в'||k==='В'){parent.postMessage('bt-pen','*')}else if(k==='Escape'){parent.postMessage('bt-penoff','*')}else if((e.ctrlKey||e.metaKey)&&k.toLowerCase()==='z'){parent.postMessage('bt-undo','*')}},true);var h=document.querySelector('.hd');if(!h)return;var b=document.createElement('button');b.className='bpx';b.type='button';b.textContent='← Шығу';b.onclick=function(){parent.postMessage('bp-exit','*')};h.insertBefore(b,h.firstChild);
 if(parent.document&&parent.document.fullscreenEnabled){var f=document.createElement('button');f.className='bpx fs';f.type='button';f.textContent='Толық экран ⤢';f.onclick=function(){parent.postMessage('bp-fs','*')};h.appendChild(f)}})();<\/script>`;
 
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
@@ -296,7 +300,7 @@ class Board{
   if(window.ResizeObserver)new ResizeObserver(()=>this.fit()).observe(stage);this.fit();
  }
  setTool(t){this.tool=t;this.pal.querySelectorAll('[data-t]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.t===t));this.c.classList.toggle('er',t==='erase')}
- toggle(v){this.on=v==null?!this.on:v;this.c.classList.toggle('on',this.on);this.pal.classList.toggle('min',!this.on);this.pal.querySelector('[data-a=toggle]').setAttribute('aria-pressed',this.on)}
+ toggle(v){this.on=v==null?!this.on:v;if(this.btn)this.btn.setAttribute('aria-pressed',this.on);this.c.classList.toggle('on',this.on);this.pal.classList.toggle('min',!this.on);this.pal.querySelector('[data-a=toggle]').setAttribute('aria-pressed',this.on)}
  undo(){for(let i=this.strokes.length-1;i>=0;i--){if(this.strokes[i].tool!=='laser'){this.strokes.splice(i,1);break}}this.draw()}
  fit(){const r=this.stage.getBoundingClientRect();if(!r.width)return;const d=Math.min(2,window.devicePixelRatio||1);this.W=r.width;this.H=r.height;this.c.width=Math.round(r.width*d);this.c.height=Math.round(r.height*d);this.c.style.width=r.width+'px';this.c.style.height=r.height+'px';this.ctx.setTransform(d,0,0,d,0,0);this.draw()}
  pt(e){const r=this.c.getBoundingClientRect();return [(e.clientX-r.left)/this.W,(e.clientY-r.top)/this.H]}
@@ -356,7 +360,7 @@ function liveToggle(full,btn,on){on=on==null?btn.getAttribute('aria-pressed')!==
 document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement){$$('.full.live').forEach(f=>{f.classList.remove('live');const b=f.querySelector('.pb.live');if(b)b.setAttribute('aria-pressed','false');if(f.id==='player')setZoom(1)})}});
 
 /* ================= LAB PLAYER ================= */
-let CUR=null,ZM=1;const PB=new Board($('#pstage'));
+let CUR=null,ZM=1;const PB=new Board($('#pstage'));PB.btn=$('#ppen');$('#ppen').onclick=()=>PB.toggle();
 function sizeLab(){const r=$('#pstage').getBoundingClientRect(),f=$('#pfr');if(!r.width)return;f.style.width=Math.round(r.width/ZM)+'px';f.style.height=Math.round(r.height/ZM)+'px';f.style.transform=ZM===1?'none':`scale(${ZM})`}
 function setZoom(z){ZM=z;$('#pzm').textContent='A+ '+Math.round(z*100)+'%';sizeLab()}
 if(window.ResizeObserver)new ResizeObserver(sizeLab).observe($('#pstage'));
@@ -373,12 +377,12 @@ $('#pzm').onclick=()=>{const zs=[1,1.25,1.5];setZoom(zs[(zs.indexOf(ZM)+1)%zs.le
 $('#plive').onclick=()=>{const on=liveToggle($('#player'),$('#plive'));setZoom(on&&innerWidth>860?1.25:1)};
 $('#pexp').onclick=()=>{const b=$('#pexp'),on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',on);try{const d=$('#pfr').contentDocument,cb=d.querySelector('#expt,input[type=checkbox][id*=exp]');if(cb&&cb.checked!==on)cb.click()}catch(e){}};
 $('#plbl').onclick=()=>{const b=$('#plbl'),on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',on);try{const w=$('#pfr').contentWindow,S=w.__SIM;if(S&&S.setLabels)S.setLabels(on);else{const cb=w.document.querySelector('#lbls');if(cb&&cb.checked!==on)cb.click()}}catch(e){}};
-window.addEventListener('message',e=>{if(e.data==='bp-exit')$('#pback').click();else if(e.data==='bp-fs')$('#plive').click()});
+window.addEventListener('message',e=>{if(e.data==='bt-pen')PB.toggle();else if(e.data==='bt-penoff')PB.toggle(false);else if(e.data==='bt-undo')PB.undo();else if(e.data==='bp-exit')$('#pback').click();else if(e.data==='bp-fs')$('#plive').click()});
 function labStep(dir){try{const w=$('#pfr').contentWindow,S=w.__SIM;if(S&&(dir>0?S.next:S.back)){dir>0?S.next():S.back();return}
  const d=w.document,b=dir>0?d.querySelector('#go,#next,.go'):d.querySelector('#back');if(b)b.click()}catch(e){}}
 
 /* ================= SLIDES (тірек сызба) ================= */
-let ST=null,SI=0;const SB=new Board($('#sstage'));
+let ST=null,SI=0;const SB=new Board($('#sstage'));SB.btn=$('#spen');$('#spen').onclick=()=>SB.toggle();
 const TC={};function getTopic(id){if(!TC[id])TC[id]=fetch('t/'+id+'.json').then(r=>{if(!r.ok)throw 0;return r.json()}).catch(e=>{delete TC[id];throw e});return TC[id]}
 function openTopic(id){
  const d=BY[id];if(!d)return;openFull('slides');$('#stitle').textContent=`${d.g}-сынып · §${d.n} · ${d.title}`;document.title=d.title+' — BIOTEACH';
